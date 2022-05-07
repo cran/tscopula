@@ -4,7 +4,6 @@ knitr::opts_chunk$set(
   comment = "#>"
 )
 library(tscopula)
-library(stats4)
 
 ## ----setup-tscopula-----------------------------------------------------------
 ar1 <- armacopula(list(ar = 0.7))

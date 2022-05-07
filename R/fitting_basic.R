@@ -77,6 +77,19 @@ setMethod("sim", c(object = "tscopulafit"), function(object, n = 1000) {
   sim(object@tscopula, n)
 })
 
+#' @describeIn tscopulafit Calculate Kendall's tau values for pair copulas for tscopulafit class
+#'
+#' @param object an object of the class.
+#' @param lagmax maximum value of lag.
+#'
+#' @export
+#'
+setMethod("kendall", c(object = "tscopulafit"), function(object, lagmax = 20) {
+  kendall(object@tscopula, lagmax)
+}
+)
+
+
 #' @describeIn tscopulafit Coef method for tscopulafit class
 #'
 #' @param object an object of class \linkS4class{tscopulafit}.
@@ -208,9 +221,11 @@ setMethod(
   "fit", c(x = "tscopulaU", y = "ANY"),
   function(x, y,
            tsoptions = list(),
-           control = list(warn.1d.NelderMead = FALSE)) {
+           control = list()) {
     defaults <- list(hessian = FALSE, method = "Nelder-Mead")
+    cdefaults <- list(warn.1d.NelderMead = FALSE, maxit = 1000)
     tsoptions <- setoptions(tsoptions, defaults)
+    control <- setoptions(control, cdefaults)
     objective <- eval(parse(text = paste(is(x)[[1]], "_objective", sep = "")))
     fit <- optim(
       par = unlist(x@pars),
@@ -254,6 +269,51 @@ setMethod("logLik", "tscopulafit", function(object) {
   logLik(as(object, "tscmfit"))
 })
 
+#' Akaike Corrected Information Criterion
+#'
+#' @param object a fitted model object for which there exists a logLik method
+#' to extract the corresponding log-likelihood.
+#' @param ... optionally more fitted model objects.
+#'
+#' @return If just one object is provided, a numeric value with the corresponding AICC value.
+#'
+#' If multiple objects are provided, a data.frame with rows corresponding to the objects and
+#' columns representing the number of parameters in the model (df) and the AICC.
+#' @export
+#'
+AICc <- function(object, ...)
+{
+  ll   <- if(isNamespaceLoaded("stats4")) stats4::logLik else logLik
+  Nobs <- if(isNamespaceLoaded("stats4")) stats4::nobs   else nobs
+  if(!missing(...)) {# several objects: produce data.frame
+    lls <- lapply(list(object, ...), ll)
+    vals <- sapply(lls, function(el) {
+      no <- attr(el, "nobs")
+      c(as.numeric(el), attr(el, "df"),
+        if(is.null(no)) NA_integer_ else no)
+    })
+    val <- data.frame(df = vals[2L,], ll = vals[1L,], nobs = vals[3L,])
+    nos <- na.omit(val$nobs)
+    if (length(nos) && any(nos != nos[1L]))
+      warning("models are not all fitted to the same number of observations")
+    ## if any val$nobs = NA, try to get value via nobs().
+    unknown <- is.na(val$nobs)
+    if(any(unknown))
+      val$nobs[unknown] <-
+      sapply(list(object, ...)[unknown],
+             function(x) tryCatch(Nobs(x), error = function(e) NA_real_))
+    val <- data.frame(df = val$df, AICc = -2*val$ll + 2*val$df + 2*val$df*(val$df+1)/(val$nobs-val$df-1))
+    row.names(val) <- as.character(match.call()[-1L])
+    val
+  } else {
+    lls <- ll(object)
+    nos <- attr(lls, "nobs")
+    if (is.null(nos)) ## helps if has nobs() method, but logLik() gives no "nobs":
+      nos <- tryCatch(Nobs(object), error = function(e) NA_real_)
+    -2 * as.numeric(lls) + 2 * attr(lls, "df") + 2*attr(lls, "df")*(attr(lls, "df")+1)/(nos - attr(lls, "df") - 1)
+  }
+}
+
 #' Plot method for tscopulafit class
 #'
 #' @param x an object of class \linkS4class{tscopulafit}.
@@ -287,7 +347,7 @@ setMethod("plot", c(x = "tscopulafit", y = "missing"),
               tauE <- glag(x, lagmax)
               k <- length(tauE)
               tauT <- kendall(x@tscopula, k)
-              plot(1:k, tauE, type = "h", xlim = c(1, min(max(k, 10), lagmax)),
+              plot(1:k, tauE, type = "h", xlim = c(1, k),
                    ylim = range(tauE,tauT,0), xlab = "lag", ylab = "tau")
               abline(h=0)
               if (k >1)
@@ -355,4 +415,33 @@ glag <- function(x, lagmax = 20, glagplot = FALSE) {
   coptype <- is(copula)[1]
   lagfunc <- eval(parse(text=paste("glag_for_", coptype, sep="")))
   lagfunc(copula, data, lagmax, glagplot)
+}
+
+#' @describeIn tscopulafit Prediction method for tscopulafit class
+#'
+#' @param object an object of class \linkS4class{tscopulafit}.
+#' @param x vector of arguments of prediction function.
+#' @param type type of prediction function ("df" for density, "qf" for quantile function
+#' or "dens" for density).
+#'
+#' @export
+#'
+setMethod("predict", c(object = "tscopulafit"), function(object, x, type = "df") {
+  predict(object@tscopula, object@data, x, type = type)
+})
+
+#' Transform a fitted armacopula into a fitted dvinecopula or dvinecopula2 object
+#'
+#' @param object an object of class \linkS4class{tscopulafit} in which the copula is
+#' of class \linkS4class{armacopula}.
+#'
+#' @return An object of class \linkS4class{tscopulafit} in which the copula is
+#' a \linkS4class{dvinecopula} (for fitted AR copulas)
+#' or class \linkS4class{dvinecopula2} (for fitted MA or ARMA copulas).
+#' @export
+armafit2dvine <- function(object){
+  if (!(is(object, "tscopulafit")))
+    stop("Not fitted armacopula")
+  tscop <- arma2dvine(object@tscopula)
+  new("tscopulafit", tscopula = tscop, data = object@data, fit = object@fit)
 }

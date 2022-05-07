@@ -4,13 +4,17 @@
 \name{tscopulafit-class}
 \alias{tscopulafit-class}
 \alias{sim,tscopulafit-method}
+\alias{kendall,tscopulafit-method}
 \alias{coef,tscopulafit-method}
 \alias{show,tscopulafit-method}
 \alias{logLik,tscopulafit-method}
 \alias{resid,tscopulafit-method}
+\alias{predict,tscopulafit-method}
 \title{Fitted time series copula processes}
 \usage{
 \S4method{sim}{tscopulafit}(object, n = 1000)
+
+\S4method{kendall}{tscopulafit}(object, lagmax = 20)
 
 \S4method{coef}{tscopulafit}(object)
 
@@ -19,13 +23,22 @@
 \S4method{logLik}{tscopulafit}(object)
 
 \S4method{resid}{tscopulafit}(object, trace = FALSE)
+
+\S4method{predict}{tscopulafit}(object, x, type = "df")
 }
 \arguments{
 \item{object}{an object of class \linkS4class{tscopulafit}.}
 
 \item{n}{length of realization.}
 
+\item{lagmax}{maximum value of lag.}
+
 \item{trace}{extract trace instead of residuals.}
+
+\item{x}{vector of arguments of prediction function.}
+
+\item{type}{type of prediction function ("df" for density, "qf" for quantile function
+or "dens" for density).}
 }
 \description{
 Class of objects for fitted time series copula processes.
@@ -34,6 +47,8 @@ Class of objects for fitted time series copula processes.
 \itemize{
 \item \code{sim}: Simulation method for tscopulafit class
 
+\item \code{kendall}: Calculate Kendall's tau values for pair copulas for tscopulafit class
+
 \item \code{coef}: Coef method for tscopulafit class
 
 \item \code{show}: Show method for tscopulafit objects
@@ -41,6 +56,8 @@ Class of objects for fitted time series copula processes.
 \item \code{logLik}: logLik method for tscopulafit class
 
 \item \code{resid}: Residual method for tscopulafit class
+
+\item \code{predict}: Prediction method for tscopulafit class
 }}
 
 \section{Slots}{

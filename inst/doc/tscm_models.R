@@ -4,7 +4,6 @@ knitr::opts_chunk$set(
   comment = "#>"
 )
 library(tscopula)
-library(stats4)
 
 ## ----standard-arma, fig.show='hold', fig.width = 6, fig.height = 3, dev.args =list(pointsize=9)----
 set.seed(13)

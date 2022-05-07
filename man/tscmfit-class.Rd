@@ -5,16 +5,30 @@
 \alias{tscmfit-class}
 \alias{logLik,tscmfit-method}
 \alias{resid,tscmfit-method}
+\alias{predict,tscmfit-method}
 \title{Fitted tscm model}
 \usage{
 \S4method{logLik}{tscmfit}(object)
 
 \S4method{resid}{tscmfit}(object, trace = FALSE)
+
+\S4method{predict}{tscmfit}(object, x, type = "df", qtype = 7, proper = FALSE)
 }
 \arguments{
 \item{object}{an object of the class.}
 
 \item{trace}{extract trace instead of residuals.}
+
+\item{x}{vector of arguments of prediction function.}
+
+\item{type}{type of prediction function ("df" for density, "qf" for quantile function
+or "dens" for density).}
+
+\item{qtype}{type of empirical quantile estimate.}
+
+\item{proper}{logical variable stating whether the standard empirical distribution function should
+be used when the margin is empirical; otherwise an improper distribution that is bounded away from 0
+and 1 is used.}
 }
 \description{
 Class of objects for fitted \linkS4class{tscm} models.
@@ -24,6 +38,8 @@ Class of objects for fitted \linkS4class{tscm} models.
 \item \code{logLik}: method for tscmfit class
 
 \item \code{resid}: Residual method for tscmfit class
+
+\item \code{predict}: Prediction method for tscmfit class
 }}
 
 \section{Slots}{

@@ -101,6 +101,96 @@ setMethod(
   }
 )
 
+#' @describeIn tscm Prediction method for tscm class
+#'
+#' @param object an object of the class.
+#' @param data vector of past data values.
+#' @param x vector of arguments of prediction function.
+#' @param type type of prediction function ("df" for density, "qf" for quantile function
+#' or "dens" for density).
+#' @param qtype type of empirical quantile estimate.
+#' @param proper logical variable stating whether the standard empirical distribution function should
+#' be used when the margin is empirical; otherwise an improper distribution that is bounded away from 0
+#' and 1 is used.
+#'
+#' @export
+#'
+setMethod("predict", c(object = "tscm"), function(object, data, x, type = "df", qtype = 7, proper = FALSE) {
+  margmod <- object@margin
+  if(margmod@name == "edf")
+    return(predict_empirical(object, data, x, type, qtype, proper))
+  Udata <- pmarg(margmod, data)
+  uvals <- switch(type,
+                  "df" = pmarg(margmod, x),
+                  "qf" = x,
+                  "dens" = pmarg(margmod, x))
+  upred <- predict(object@tscopula, Udata, uvals, type = type)
+  switch(type,
+         "df" = upred,
+         "qf" = qmarg(margmod, upred),
+         "dens" = upred * dmarg(margmod, x))
+})
+
+#' @describeIn tscm Calculate Kendall's tau values for pair copulas for tscm class
+#'
+#' @param object an object of the class.
+#' @param lagmax maximum value of lag.
+#'
+#' @export
+#'
+setMethod("kendall", c(object = "tscm"), function(object, lagmax = 20) {
+  kendall(object@tscopula, lagmax)
+}
+)
+
+#' Adjusted empirical distribution function
+#'
+#' @param x argument of empirical distribution function.
+#' @param data vector of data for constructing empirical
+#' distribution function.
+#' @param proper logical variable which when set to TRUE will return
+#' the standard empirical distribution function.
+#'
+#' @return a vector of same length as x
+#' @export
+#'
+pedf <- function(x, data, proper = FALSE){
+  df <- ecdf(data)(x)
+  if (!proper){
+    n <- length(data)
+    df <- df*n/(n+1)
+    df[x < min(data)] <- 0.5/(n+1)
+    df[x > max(data)] <- (n+0.5)/(n+1)
+  }
+  df
+}
+
+#' Prediction function for tscm class with empirical margin
+#'
+#' @param object an object of the class.
+#' @param data vector of past data values.
+#' @param x vector of arguments of prediction function.
+#' @param type type of prediction function ("df" for density, "qf" for quantile function
+#' or "dens" for density).
+#' @param qtype type of empirical quantile estimate.
+#' @param proper logical variable stating whether the standard empirical distribution function should
+#' be used when the margin is empirical; otherwise an improper distribution that is bounded away from 0
+#' and 1 is used.
+#' @keywords internal
+#'
+predict_empirical <- function(object, data, x, type, qtype, proper){
+  Udata <- strank(data)
+  uvals <- switch(type,
+                  "df" = pedf(x, data, proper),
+                  "qf" = x,
+                  "dens" = pedf(x, data, proper))
+  upred <- predict(object@tscopula, Udata, uvals, type = type)
+  switch(type,
+         "df" = upred,
+         "qf" = quantile(data, upred, type = qtype),
+         "dens" = upred * kdensity::kdensity(data)(x))
+}
+
 #' Fitted tscm model
 #'
 #' Class of objects for fitted \linkS4class{tscm} models.
@@ -145,14 +235,12 @@ setMethod(
   function(x,
            y,
            tsoptions = list(),
-           control = list(
-             warn.1d.NelderMead = FALSE,
-             trace = FALSE,
-             maxit = 5000
-           ),
+           control = list(),
            method = "IFM") {
     defaults <- list(hessian = FALSE, method = "Nelder-Mead", changeatzero = FALSE)
+    cdefaults <- list(warn.1d.NelderMead = FALSE, trace = FALSE, maxit = 5000)
     tsoptions <- setoptions(tsoptions, defaults)
+    control <- setoptions(control, cdefaults)
     if (is(x, "tscmfit")) {
       tscopula <- x@tscopula
       margin <- x@margin
@@ -164,6 +252,8 @@ setMethod(
       }
       x <- new("tscm", tscopula = tscopula, margin = margin)
     }
+    if (x@margin@name == "edf")
+      method <- "empirical"
     if ((method == "full") & is(x@tscopula, "tscopulaU")) {
       method <- paste(method, "A", sep = "")
     }
@@ -379,6 +469,23 @@ setMethod("resid", "tscmfit",
                 fit = object@fit)
             resid(object, trace)
           })
+
+#' @describeIn tscmfit Prediction method for tscmfit class
+#'
+#' @param object an object of the class.
+#' @param x vector of arguments of prediction function.
+#' @param type type of prediction function ("df" for density, "qf" for quantile function
+#' or "dens" for density).
+#' @param qtype type of empirical quantile estimate.
+#' @param proper logical variable stating whether the standard empirical distribution function should
+#' be used when the margin is empirical; otherwise an improper distribution that is bounded away from 0
+#' and 1 is used.
+#'
+#' @export
+#'
+setMethod("predict", c(object = "tscmfit"), function(object, x, type = "df", qtype = 7, proper = FALSE) {
+  predict(tscm(object@tscopula, object@margin), object@data, x, type = type, qtype = qtype, proper = proper)
+})
 
 #' Plot method for tscmfit class
 #'

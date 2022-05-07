@@ -35,7 +35,7 @@ dvinecopula2 <- function(family = "gauss",
                          pars = list(ar = 0.1, ma = 0.1),
                          maxlag = Inf,
                          negtau = "none") {
-  if (class(family) != "character")
+  if (!(is(family, "character")))
     stop("copula family must be specified by name")
   if (is.null(names(pars)))
     stop("parameters should be named (p1 and p2 for exp/power)")
@@ -89,8 +89,21 @@ kpacf_arma <- function(k, theta){
 #' @examples
 #' rho <- ARMAacf(ar = -0.9, ma = 0.8, lag.max = 50)[-1]
 #' alpha <- acf2pacf(rho)
-acf2pacf <- function(rho){
-  FitAR::PacfDL(c(1,rho))$Pacf
+acf2pacf <- function(rho) {
+  L <- length(rho)
+  pi <- numeric(L)
+  pi[1] <- rho[1]
+  phik <- pi
+  vk <- (1 - pi[1] ^ 2)
+  if (L > 1) {
+    for (k in 2:L) {
+      a <- sum(c(1, -phik[1:(k - 1)]) * rev(rho[1:k])) / vk
+      phik <- c(phik[1:(k - 1)] - a * rev(phik[1:(k - 1)]), a)
+      vk <- vk * (1 - a ^ 2)
+      pi[k] <- a
+    }
+  }
+  pi
 }
 
 #' Compute autocorrelations from partial autocorrelations
@@ -103,9 +116,14 @@ acf2pacf <- function(rho){
 #' @examples
 #' alpha <- ARMAacf(ar = -0.9, ma = 0.8, lag.max = 50, pacf = TRUE)
 #' rho <- pacf2acf(alpha)
-pacf2acf <- function(alpha){
-  arcoef <- FitAR::PacfToAR(alpha)
-  rho <- stats::ARMAacf(ar = arcoef, lag.max = length(alpha))
+pacf2acf <- function(alpha) {
+  L <- length(alpha)
+  phik <- numeric(L)
+  phik[1] <- alpha[1]
+  if (L > 1)
+    for (k in 2:L)
+      phik[1:k] = c(phik[1:(k - 1)] - alpha[k] * rev(phik[1:(k - 1)]), alpha[k])
+  rho <- stats::ARMAacf(ar = phik, lag.max = length(alpha))
   as.numeric(rho[-1])
 }
 
@@ -218,9 +236,9 @@ dvinecopula2_objective <- function(theta, modelspec, u) {
     fam <- tolower(modelspec$family)
     rot <- modelspec$rotation
     if (tauvals[i] < 0){
-      if (modelspec$negtau == "right")
-        rot <- rot + 90
       if (modelspec$negtau == "left")
+        rot <- rot + 90
+      if (modelspec$negtau == "right")
         rot <- (rot + 270) %% 360
       if (modelspec$negtau %in% c("gauss","frank")){
         fam <- modelspec$negtau
@@ -311,9 +329,9 @@ mklist_dvine2 <- function(x, maxlag, truncate, tol = 1){
     fam <- tolower(x@modelspec$family)
     rot <- x@modelspec$rotation
     if (tauvals[i] < 0){
-      if (x@modelspec$negtau == "right")
-        rot <- rot + 90
       if (x@modelspec$negtau == "left")
+        rot <- rot + 90
+      if (x@modelspec$negtau == "right")
         rot <- (rot + 270) %% 360
       if (x@modelspec$negtau %in% c("gauss","frank")){
         fam <- x@modelspec$negtau
@@ -334,6 +352,25 @@ mklist_dvine2 <- function(x, maxlag, truncate, tol = 1){
   pc_list
 }
 
+#' @describeIn dvinecopula2 Prediction method for dvinecopula2 class
+#'
+#' @param object an object of the class.
+#' @param data vector of past data values.
+#' @param x vector of arguments of prediction function.
+#' @param type type of prediction function ("df" for density, "qf" for quantile function
+#' or "dens" for density).
+#'
+#' @export
+#'
+setMethod("predict", c(object = "dvinecopula2"), function(object, data, x, type = "df") {
+  pc_list <- mklist_dvine2(object, length(data)-1, truncate = TRUE, tol = 1/3)
+  switch(type,
+         "df" = Rblatt(pc_list, data, x),
+         "qf" = IRblatt(pc_list, data, x),
+         "dens" = Rblattdens(pc_list, data, x))
+
+})
+
 #' Residual function for dvinecopula2 object
 #'
 #' @param object a fitted dvinecopula2 object.
@@ -347,6 +384,9 @@ resid_dvinecopula2 <- function(object, data = NA, trace = FALSE){
   n <- length(data)
   pc_list <- mklist_dvine2(object, n-1, truncate = TRUE, tol = 1/3)
   k <- length(pc_list)
+  for (i in 1:k)
+    if (pc_list[[i]]$rotation %in% c(90,270))
+      pc_list[[i]]$rotation <- 360 - pc_list[[i]]$rotation
   if (trace)
     target <- rep(0.5, n)
   else

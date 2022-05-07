@@ -451,9 +451,11 @@ setClass("marginfit",
 #' fit(margmod, data)
 setMethod("fit", c(x = "margin", y = "ANY"), function(x, y,
                                                       tsoptions = list(),
-                                                      control = list(maxit = 1000)) {
+                                                      control = list()) {
   defaults <- list(hessian = FALSE, method = "Nelder-Mead")
+  cdefaults <- list(maxit = 1000, warn.1d.NelderMead = FALSE)
   tsoptions <- setoptions(tsoptions, defaults)
+  control <- setoptions(control, cdefaults)
   dens <- eval(parse(text = paste("d", x@name, sep = "")))
   objective <- function(theta, dens, y) {
     dx <- do.call(dens, append(theta, list(x = y, log = TRUE)))
@@ -535,4 +537,11 @@ setMethod("plot", c(x = "marginfit", y = "missing"),
               abline(0, 1, col = colchoice)
             })
 
-
+#' Construct empirical margin
+#'
+#' @return An object of class \linkS4class{margin} signifying an empirical distribution function.
+#' @export
+#'
+edf <- function(){
+  new("margin", name = "edf")
+}
