@@ -2,10 +2,7 @@
 #'
 #' Class of objects for marginal models for stationary time series. The
 #' object is given a name and there must exist functions pname, qname,
-#' dname and rname. For example, the object could be named norm and
-#' make use of \code{\link[stats]{pnorm}}, \code{\link[stats]{qnorm}},
-#' \code{\link[stats]{dnorm}} and \code{\link[stats]{rnorm}}.
-#' As well as the parameters of the distribution, dname must have the
+#' dname and rname. As well as the parameters of the distribution, dname must have the
 #' logical argument log specifying whether log density should be computed.
 #'
 #' @slot name name of the marginal model class.
@@ -15,7 +12,7 @@
 #' @export
 #'
 #' @examples
-#' new("margin", name = "norm", pars = c(mu = 0, sigma = 1))
+#' new("margin", name = "gauss", pars = c(mu = 0, sigma = 1))
 setClass("margin", slots = list(
   name = "character",
   pars = "numeric"
@@ -35,6 +32,7 @@ setMethod("coef", "margin", function(object) {
   object@pars
 })
 
+
 #' Constructor function for margin
 #'
 #' @param name character string giving name of distribution
@@ -46,11 +44,10 @@ setMethod("coef", "margin", function(object) {
 #' @examples
 #' margin("sst")
 margin <- function(name, pars = NULL) {
+  if (name == "norm")
+    name <- "gauss"
   pfunc <- eval(parse(text = paste("p", name, sep = "")))
   defaults <- unlist(formals(pfunc)[-1])
-  if (name == "norm") {
-    defaults <- defaults[1:2]
-  }
   if (!is.null(pars)) {
     parnames <- names(pars)
     parset <- parnames[parnames %in% names(defaults)]
@@ -73,7 +70,7 @@ margin <- function(name, pars = NULL) {
 #' @export
 #'
 #' @examples
-#' margmod <- margin("norm", pars = c(mean = 0, sd = 1))
+#' margmod <- margin("gauss", pars = c(mu = 0, sigma = 1))
 #' pmarg(margmod, c(-2, 0, 2))
 pmarg <- function(x, q) {
   if (is(x, "marginfit")) {
@@ -94,7 +91,7 @@ pmarg <- function(x, q) {
 #' @export
 #'
 #' @examples
-#' margmod <- margin("norm", pars = c(mean = 0, sd = 1))
+#' margmod <- margin("gauss", pars = c(mu = 0, sigma = 1))
 #' qmarg(margmod, c(0.05, 0.5, 0.95))
 qmarg <- function(x, p) {
   if (is(x, "marginfit")) {
@@ -117,7 +114,7 @@ qmarg <- function(x, p) {
 #' @export
 #'
 #' @examples
-#' margmod <- margin("norm", pars = c(mean = 0, sd = 1))
+#' margmod <- margin("gauss", pars = c(mu = 0, sigma = 1))
 #' dmarg(margmod, c(-2, 0, 2), log = TRUE)
 dmarg <- function(x, y, log = FALSE) {
   if (is(x, "marginfit")) {
@@ -125,6 +122,81 @@ dmarg <- function(x, y, log = FALSE) {
   }
   func <- eval(parse(text = paste("d", x@name, sep = "")))
   do.call(func, append(x@pars, list(x = y, log = log)))
+}
+
+#' Gaussian distribution
+#'
+#' @param x vector of values.
+#' @param q vector of quantiles.
+#' @param p vector of probabilities.
+#' @param n number of observations.
+#' @param mu location parameter.
+#' @param sigma scale parameter.
+#' @param log flag for log density.
+#' @name gauss
+#' @return A vector of density, distribution function, quantile or random values.
+NULL
+#> NULL
+#'
+#' @rdname gauss
+#' @export
+dgauss <- function(x, mu = 0, sigma = 1, log = FALSE){
+  if (sigma < 0)
+    return(NA)
+  dnorm(x, mean = mu, sd = sigma, log = log)
+}
+#' @rdname gauss
+#' @export
+pgauss <- function(q, mu = 0, sigma = 1){
+  if (sigma < 0)
+    return(NA)
+  pnorm(q, mean = mu, sd = sigma)
+}
+#' @rdname gauss
+#' @export
+qgauss <- function(p, mu = 0, sigma = 1){
+  if (sigma < 0)
+    return(NA)
+  qnorm(p, mean = mu, sd = sigma)
+}
+#' @rdname gauss
+#' @export
+rgauss <- function(n, mu = 0, sigma = 1){
+  rnorm(n, mean = mu, sd = sigma)
+}
+
+#' Centred Gaussian distribution
+#'
+#' @param x vector of values.
+#' @param q vector of quantiles.
+#' @param p vector of probabilities.
+#' @param n number of observations.
+#' @param sigma scale parameter.
+#' @param log flag for log density.
+#' @name gauss0
+#' @return A vector of density, distribution function, quantile or random values.
+NULL
+#> NULL
+#'
+#' @rdname gauss0
+#' @export
+dgauss0 <- function(x, sigma = 1, log = FALSE){
+  dgauss(x, mu = 0, sigma = sigma, log = log)
+}
+#' @rdname gauss0
+#' @export
+pgauss0 <- function(q, sigma = 1){
+  pgauss(q, mu = 0, sigma = sigma)
+}
+#' @rdname gauss0
+#' @export
+qgauss0 <- function(p, sigma = 1){
+  qgauss(p, mu = 0, sigma = sigma)
+}
+#' @rdname gauss0
+#' @export
+rgauss0 <- function(n, sigma = 1){
+  rgauss(n, mu = 0, sigma = sigma)
 }
 
 #' Laplace distribution
@@ -143,24 +215,77 @@ NULL
 #'
 #' @rdname laplace
 #' @export
-dlaplace <- function(x, mu = 0.05, scale = 1, log = FALSE){
-  dsdoubleweibull(x, mu = mu, shape = 1, scale = scale, gamma = 1, log = log)
+dlaplace <- function(x, mu = 0, scale = 1, log = FALSE){
+  if (scale <= 0){
+    return(NA)
+  }
+  y <- (x - mu)/scale
+  tmp <- -abs(y) - log(2*scale)
+  arg <- rep(NA, length(x))
+  if (!log)
+    tmp <- exp(tmp)
+  tmp
 }
 #' @rdname laplace
 #' @export
-plaplace <- function(q, mu = 0.05, scale = 1){
-  psdoubleweibull(q, mu = mu, shape = 1, scale = scale, gamma = 1)
+plaplace <- function(q, mu = 0, scale = 1){
+  if (scale <= 0)
+    return(NA)
+  y <- (q - mu)/scale
+  tmp <- exp(-abs(y))/2
+  tmp[y >= 0] <- 1 - tmp[y >= 0]
+  tmp
 }
 #' @rdname laplace
 #' @export
-qlaplace <- function(p, mu = 0.05, scale = 1){
-  qsdoubleweibull(p, mu = mu, shape = 1, scale = scale, gamma = 1)
+qlaplace <- function(p, mu = 0, scale = 1){
+  if (scale <= 0)
+    return(NA)
+  tmp <- rep(NA, length(p))
+  tmp[p < 0.5] <- log(2*p[p < 0.5])
+  tmp[p >= 0.5] <- -log(2 - 2*p[p >= 0.5])
+  mu + scale*tmp
 }
 #' @rdname laplace
 #' @export
-rlaplace <- function(n, mu = 0.05, scale = 1){
+rlaplace <- function(n, mu = 0, scale = 1){
   qlaplace(runif(n), mu, scale)
 }
+
+#' Centred Laplace distribution
+#'
+#' @param x vector of values.
+#' @param q vector of quantiles.
+#' @param p vector of probabilities.
+#' @param n number of observations.
+#' @param scale scale parameter.
+#' @param log flag for log density.
+#' @name laplace0
+#' @return A vector of density, distribution function, quantile or random values.
+NULL
+#> NULL
+#'
+#' @rdname laplace0
+#' @export
+dlaplace0 <- function(x, scale = 1, log = FALSE){
+ dlaplace(x, mu = 0, scale = scale, log = log)
+}
+#' @rdname laplace0
+#' @export
+plaplace0 <- function(q, scale = 1){
+ plaplace(q, mu = 0 , scale = scale)
+}
+#' @rdname laplace0
+#' @export
+qlaplace0 <- function(p, scale = 1){
+ qlaplace(p, mu = 0, scale = scale)
+}
+#' @rdname laplace0
+#' @export
+rlaplace0 <- function(n, scale = 1){
+  qlaplace(runif(n), mu = 0, scale)
+}
+
 
 #' Skew Laplace distribution
 #'
@@ -337,6 +462,40 @@ rst <- function(n, df, mu, sigma) {
   rt(n, df) * sigma + mu
 }
 
+#' Centred Student t distribution
+#'
+#' @param x vector of values.
+#' @param q vector of quantiles.
+#' @param p vector of probabilities.
+#' @param n number of observations.
+#' @param df degrees of freedom.
+#' @param sigma scale parameter.
+#' @param log flag for log density.
+#' @name st0
+#' @return A vector of density, distribution function, quantile or random values.
+NULL
+#> NULL
+#' @rdname st0
+#' @export
+pst0 <- function(q, df = 10, sigma = 1) {
+  pst(q, df = df, mu = 0, sigma = sigma)
+}
+#' @rdname st0
+#' @export
+qst0 <- function(p, df, sigma) {
+  qst(p, df = df, mu = 0, sigma = sigma)
+}
+#' @rdname st0
+#' @export
+dst0 <- function(x, df, sigma, log = FALSE) {
+  dst(x, df = df, mu = 0, sigma = sigma, log = log)
+}
+#' @rdname st0
+#' @export
+rst0 <- function(n, df, sigma) {
+  rt(n, df = df) * sigma
+}
+
 #' Skew Student t distribution
 #'
 #' @param x vector of values.
@@ -408,7 +567,7 @@ rsst <- function(n, df, gamma, mu, sigma) {
 #' @export
 #'
 #' @examples
-#' margmod <- margin("norm", pars = c(mean = 0, sd = 1))
+#' margmod <- margin("gauss", pars = c(mu = 0, sigma = 1))
 #' sim(margmod, n = 500)
 setMethod("sim", c(object = "margin"), function(object, n = 1000) {
   func <- eval(parse(text = paste("r", object@name, sep = "")))
@@ -446,7 +605,7 @@ setClass("marginfit",
 #' @export
 #'
 #' @examples
-#' margmod <- margin("norm", pars = c(mean = 0, sd = 1))
+#' margmod <- margin("gauss", pars = c(mu = 0, sigma = 1))
 #' data <- sim(margmod, n = 500)
 #' fit(margmod, data)
 setMethod("fit", c(x = "margin", y = "ANY"), function(x, y,

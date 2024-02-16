@@ -1,6 +1,6 @@
 #' D-vine copula processes of type 2
 #'
-#' Class of objects for d-vine copula processes.
+#' Class of objects for d-vine copula processes. See \link{dvinecopula2} for more details.
 #'
 #' @slot name name of the d-vine copula process.
 #' @slot modelspec list containing the family, rotation, and name of KPACF
@@ -16,12 +16,41 @@ setClass("dvinecopula2", contains = "tscopula", slots = list(
 
 #' Constructor function for dvinecopula2 process
 #'
+#' This function sets up a stationary d-vine process of finite or infinite order based on a single
+#' copula family from a subset of those that can be implemented using
+#' \code{\link[rvinecopulib]{bicop_dist}} in the \code{rvinecopulib} package.
+#'
+#' The copula family may be any one-parameter family or the t copula family. The basic copula from
+#' which the sequence is built may be rotated through 180 degrees using the \code{rotation} argument; the default
+#' is no rotation (0 degrees).
+#'
+#' The copulas are parameterized using the Kendall partial autocorrelation function (kpacf) specified
+#' by the \code{kpacf} argument. The default choice is the kpacf of a standard ARMA process which is
+#' implemented in the function \code{\link{kpacf_arma}}. The parameters
+#' of the kpacf should be set as a list using the \code{pars} argument; the required parameters should usually
+#' be clear from the documentation of the chosen kpacf function and must be correctly named.
+#'
+#' If the kpacf takes a negative value at any lag and the standard copula is unable to model a
+#' negative dependency (e.g. Clayton, Gumbel, Joe and their 180 degree rotations) then one of four
+#' different treatments may be specified using the \code{negtau} parameter: "gauss" substitutes a
+#' Gaussian copula at that lag; "frank" substitutes a Frank copula; "right" and "left" rotate the copula
+#' through 90 degrees in a clockwise or anto-clockwise direction respectively.
+#'
+#' The \code{maxlag} parameter specifies the maximum lag of the process; a finite number gives a finite-order
+#' stationary d-vine process, but the parameter may also be set to \code{Inf} for an infinite-order process.
+#'
+#' If the t copula is chosen by setting \code{family} equal to "t", the list of
+#' parameters needs to be augmented with a component named "df" which is
+#' the degrees of freedom. In this case it makes sense to set \code{maxlag} to be a finite number to avoid models
+#' with tail dependencies at arbitrary lags which are not ergodic. The class \linkS4class{dvinecopula3}
+#' is more suitable for working with t copulas with different degrees of freedom at different lags.
+#'
 #' @param family family name
-#' @param rotation rotation
-#' @param kpacf character string giving name of Kendal pacf
-#' @param pars a list containing the parameters of each lag
-#' @param maxlag scalar specifying maximum lag
-#' @param negtau character specifiying treatment of negative tau values
+#' @param rotation a scalar specifying the rotation (default is 0)
+#' @param kpacf a character string giving the name of the Kendall pacf
+#' @param pars a list containing the parameters of the model
+#' @param maxlag a scalar specifying the maximum lag
+#' @param negtau a character string specifying the treatment of negative Kendall's tau values
 #'
 #' @return An object of class \linkS4class{dvinecopula2}.
 #' @export
@@ -79,6 +108,86 @@ kpacf_arma <- function(k, theta){
   (2/pi)*asin(pacf)
 }
 
+#' KPACF of quarterly seasonal ARMA process
+#'
+#' @param k number of lags.
+#' @param theta list with components ar, ma, sar and sma specifying the ARMA and seasonal ARMA parameters.
+#'
+#' @return A vector of Kendall partial autocorrelations of length \code{k}.
+#' @export
+kpacf_sarma4 <- function (k, theta)
+{
+  if (is.list(theta))
+    theta <- unlist(theta)
+  nm <- substring(names(theta), 1, 2)
+  D <- 4
+  ar <- numeric()
+  ma <- numeric()
+  sar <- numeric()
+  sma <- numeric()
+  if ("ar" %in% nm)
+    ar <- theta[nm == "ar"]
+  if ("ma" %in% nm)
+    ma <- theta[nm == "ma"]
+  nm <- substring(names(theta), 1, 3)
+  if ("sar" %in% nm){
+    sar <- theta[nm == "sar"]
+    sar <- as.vector(sapply(sar, function(x, d){c(rep(0, d-1), x)}, d=D))
+    ar <- -coefficients(polynom::polynomial(c(1, -sar)) * polynom::polynomial(c(1, -ar)))[-1]
+    if (length(ar) == 0) ar <-0
+  }
+  if ("sma" %in% nm){
+    sma <- theta[nm == "sma"]
+    sma <- as.vector(sapply(sma, function(x, d){c(rep(0, d-1), x)}, d=D))
+    ma <- coefficients(polynom::polynomial(c(1, sma)) * polynom::polynomial(c(1, ma)))[-1]
+    if (length(ma) == 0) ma <- 0
+  }
+  if ((non_stat(ar)) | (non_invert(ma)))
+    return(rep(NA, k))
+  pacf <- ARMAacf(ar = ar, ma = ma, lag.max = k, pacf = TRUE)
+  (2/pi) * asin(pacf)
+}
+
+#' KPACF of monthly seasonal ARMA process
+#'
+#' @param k number of lags.
+#' @param theta list with components ar, ma, sar and sma specifying the ARMA and seasonal ARMA parameters.
+#'
+#' @return A vector of Kendall partial autocorrelations of length \code{k}.
+#' @export
+kpacf_sarma12 <- function (k, theta)
+{
+  if (is.list(theta))
+    theta <- unlist(theta)
+  nm <- substring(names(theta), 1, 2)
+  D <- 12
+  ar <- numeric()
+  ma <- numeric()
+  sar <- numeric()
+  sma <- numeric()
+  if ("ar" %in% nm)
+    ar <- theta[nm == "ar"]
+  if ("ma" %in% nm)
+    ma <- theta[nm == "ma"]
+  nm <- substring(names(theta), 1, 3)
+  if ("sar" %in% nm){
+    sar <- theta[nm == "sar"]
+    sar <- as.vector(sapply(sar, function(x, d){c(rep(0, d-1), x)}, d=D))
+    ar <- -coefficients(polynom::polynomial(c(1, -sar)) * polynom::polynomial(c(1, -ar)))[-1]
+    if (length(ar) == 0) ar <-0
+  }
+  if ("sma" %in% nm){
+    sma <- theta[nm == "sma"]
+    sma <- as.vector(sapply(sma, function(x, d){c(rep(0, d-1), x)}, d=D))
+    ma <- coefficients(polynom::polynomial(c(1, sma)) * polynom::polynomial(c(1, ma)))[-1]
+    if (length(ma) == 0) ma <- 0
+  }
+  if ((non_stat(ar)) | (non_invert(ma)))
+    return(rep(NA, k))
+  pacf <- ARMAacf(ar = ar, ma = ma, lag.max = k, pacf = TRUE)
+  (2/pi) * asin(pacf)
+}
+
 #' Compute partial autocorrelations from autocorrelations
 #'
 #' @param rho vector of autocorrelation values (excluding 1).
@@ -125,6 +234,26 @@ pacf2acf <- function(alpha) {
       phik[1:k] = c(phik[1:(k - 1)] - alpha[k] * rev(phik[1:(k - 1)]), alpha[k])
   rho <- stats::ARMAacf(ar = phik, lag.max = length(alpha))
   as.numeric(rho[-1])
+}
+
+#' Compute autoregressive coefficients from partial autocorrelations
+#'
+#' @param alpha vector of partial autocorrelation values.
+#'
+#' @return A vector of autoregressive coefficients with same length as \code{alpha}.
+#' @export
+#'
+#' @examples
+#' alpha <- ARMAacf(ar = -0.9, ma = 0.8, lag.max = 50, pacf = TRUE)
+#' phi <- pacf2ar(alpha)
+pacf2ar <- function(alpha) {
+  L <- length(alpha)
+  phik <- numeric(L)
+  phik[1] <- alpha[1]
+  if (L > 1)
+    for (k in 2:L)
+      phik[1:k] = c(phik[1:(k - 1)] - alpha[k] * rev(phik[1:(k - 1)]), alpha[k])
+  phik
 }
 
 #' KPACF of ARFIMA process
@@ -183,7 +312,10 @@ setMethod("coef", c(object = "dvinecopula2"), function(object) {
   if (length(object@pars) == 1) {
     return(object@pars[[1]])
   } else {
-    return(unlist(object@pars))
+    nms <- unlist(lapply(object@pars, names), use.names = FALSE)
+    vals <- unlist(object@pars, use.names = FALSE)
+    names(vals) <- nms
+    return(vals)
   }
 })
 
@@ -254,7 +386,7 @@ dvinecopula2_objective <- function(theta, modelspec, u) {
     if (is.na(coppars))
       return(NA)
     if (fam == "t")
-      coppars <- c(coppars, theta["nu"])
+      coppars <- c(coppars, theta["df"])
     pc_list[[i]] <- tryCatch(rvinecopulib::bicop_dist(
       family = fam,
       rotation = rot,
@@ -293,6 +425,8 @@ dvinecopula2_objective <- function(theta, modelspec, u) {
 ktau_to_par <- function(family, tau){
   if (family == "t")
     family <- "gauss"
+  if (family == "bb1")
+    family <- "clayton"
   rvinecopulib::ktau_to_par(family, tau)
 }
 
@@ -343,7 +477,7 @@ mklist_dvine2 <- function(x, maxlag, truncate, tol = 1){
       tau = tauvals[i]
     )
     if (fam == "t")
-      coppars <- c(coppars, x@pars$nu)
+      coppars <- c(coppars, x@pars$df)
     pc_list[[i]] <- rvinecopulib::bicop_dist(
       family = fam,
       rotation = rot,

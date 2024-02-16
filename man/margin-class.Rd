@@ -22,21 +22,18 @@
 \description{
 Class of objects for marginal models for stationary time series. The
 object is given a name and there must exist functions pname, qname,
-dname and rname. For example, the object could be named norm and
-make use of \code{\link[stats]{pnorm}}, \code{\link[stats]{qnorm}},
-\code{\link[stats]{dnorm}} and \code{\link[stats]{rnorm}}.
-As well as the parameters of the distribution, dname must have the
+dname and rname. As well as the parameters of the distribution, dname must have the
 logical argument log specifying whether log density should be computed.
 }
 \section{Methods (by generic)}{
 \itemize{
-\item \code{coef}: Coef method for margin class
+\item \code{coef(margin)}: Coef method for margin class
 
-\item \code{sim}: Simulation method for margin class
+\item \code{sim(margin)}: Simulation method for margin class
 
-\item \code{show}: Show method for margin class
+\item \code{show(margin)}: Show method for margin class
+
 }}
-
 \section{Slots}{
 
 \describe{
@@ -47,7 +44,7 @@ which are passed as arguments to pname, qname, dname and rname.}
 }}
 
 \examples{
-new("margin", name = "norm", pars = c(mu = 0, sigma = 1))
-margmod <- margin("norm", pars = c(mean = 0, sd = 1))
+new("margin", name = "gauss", pars = c(mu = 0, sigma = 1))
+margmod <- margin("gauss", pars = c(mu = 0, sigma = 1))
 sim(margmod, n = 500)
 }

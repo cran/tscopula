@@ -45,7 +45,7 @@ armacopula <- function(pars = list(ar = 0, ma = 0)) {
       stop("No NULL values for parameters; omit from list instead")
     }
     if (non_invert(mapars)) {
-      stop("Non-nvertible MA model")
+      stop("Non-invertible MA model")
     }
     q <- length(mapars)
     names(pars$ma) <- paste("ma", 1:q, sep = "")
@@ -143,10 +143,11 @@ non_invert <- function(ma) {
 #' @examples
 #' sim(armacopula(list(ar = c(0.5, 0.4), ma = -0.8)), n = 1000)
 setMethod("sim", c(object = "armacopula"), function(object, n = 1000) {
+  discard <- sum(object@modelspec)
   pnorm(arima.sim(
     model = object@pars,
     n = n,
-    n.start = 10,
+    n.start = discard + 1,
     sd = sigmastarma(object)
   ))
 })
@@ -442,12 +443,7 @@ arma2dvine <- function(object){
   q <- ord[2]
   if (q == 0)
     tscop <- dvinecopula(family = "gauss", pars = coef(object))
-  else {
-    if (p == 0)
-      parlist <- list(ma = coef(object))
-    if (p > 0)
-      parlist <- list(ar = coef(object)[1:p], ma = coef(object)[(p+1):(p+q)])
-    tscop <- dvinecopula2(family = "gauss", pars = parlist)
-  }
+  else
+    tscop <- dvinecopula2(family = "gauss", pars = object@pars)
   tscop
 }

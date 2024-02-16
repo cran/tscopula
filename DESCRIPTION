@@ -1,8 +1,8 @@
 Package: tscopula
 Type: Package
 Title: Time Series Copula Models
-Version: 0.3.1
-Date: 2022-05-07
+Version: 0.3.9
+Date: 2024-02-16
 Authors@R: 
     c(person(given = "Alexander", 
              family = "McNeil", 
@@ -17,23 +17,23 @@ Description: Functions for the analysis of time series using copula models.
     The package is based on methodology described in the following references.
     McNeil, A.J. (2021) <doi:10.3390/risks9010014>,
     Bladt, M., & McNeil, A.J. (2021) <doi:10.1016/j.ecosta.2021.07.004>,
-    Bladt, M., & McNeil, A.J. (2021) <arXiv:2107.00960>.
+    Bladt, M., & McNeil, A.J. (2022) <doi:10.1515/demo-2022-0105>.
 Depends: R (>= 3.5.0)
 License: GPL-3
 LazyData: true
-RoxygenNote: 7.1.2
+RoxygenNote: 7.3.1
 Encoding: UTF-8
 Imports: methods, stats, graphics, utils, stats4, zoo, xts, FKF, ltsa,
-        rvinecopulib, arfima, Matrix, kdensity
-Collate: 'basic_objects.R' 'armacopula.R' 'dvinecopula.R'
-        'dvinecopula2.R' 'fitting_basic.R' 'margins.R' 'full_models.R'
-        'vtransforms.R' 'fitting_vtscopula.R' 'helper_vtarma.R'
-        'data.R'
+        rvinecopulib, arfima, Matrix, polynom, kdensity
+Collate: 'basic_objects.R' 'armacopula.R' 'sarmacopula.R'
+        'dvinecopula.R' 'dvinecopula2.R' 'dvinecopula3.R'
+        'fitting_basic.R' 'margins.R' 'full_models.R' 'vtransforms.R'
+        'fitting_vtscopula.R' 'helper_vtarma.R' 'data.R'
 Suggests: knitr, rmarkdown
 VignetteBuilder: knitr
 NeedsCompilation: no
-Packaged: 2022-05-07 08:22:27 UTC; alexanderjmcneil
+Packaged: 2024-02-16 17:17:19 UTC; ajm643
 Author: Alexander McNeil [aut, cre],
   Martin Bladt [aut]
 Repository: CRAN
-Date/Publication: 2022-05-07 09:10:02 UTC
+Date/Publication: 2024-02-16 19:10:02 UTC

@@ -16,15 +16,26 @@ setClass("dvinecopula", contains = "tscopula", slots = list(
 
 #' Constructor function for dvinecopula process
 #'
+#' This function sets up a stationary d-vine process of finite order where the elements of
+#' the (finite-length) copula sequence may be any copulas that can be implemented using
+#' \code{\link[rvinecopulib]{bicop_dist}} in the \code{rvinecopulib} package.
+#'
+#' Copulas may also be rotated through 90, 180 and 270 degrees.  If the
+#' same \code{family} or same \code{rotation} is to be used at every lag, these arguments may be scalars.
+#' The \code{pars} argument must be a list with the same length as the copula sequence.
+#'
+#' If a t copula is included, the correlation parameter precedes the degrees of freedom in the parameter vector.
+#' This copula should be referred to as "t" rather than "Student".
+#'
 #' @param family a vector of family names
-#' @param pars a list containing the parameters of each lag
+#' @param pars a list containing the parameters of the copula at each lag
 #' @param rotation a vector of rotations
 #'
 #' @return An object of class \linkS4class{dvinecopula}.
 #' @export
 #'
 #' @examples
-#' dvinecopula(family = c("joe", "gauss", "t"), pars = list(3, .5, c(1, 2)), rotation = c(180, 0, 0))
+#' dvinecopula(family = c("joe", "gauss", "t"), pars = list(3, .5, c(0.4, 4)), rotation = c(180, 0, 0))
 dvinecopula <- function(family = "indep", pars = list(NULL), rotation = 0) {
   if (!(is(family, "character")))
     stop("families must be specified by names")
@@ -165,8 +176,19 @@ mklist_dvine <- function(x){
 
 #' Calculate Rosenblatt function
 #'
+#' Evaluates the Rosenblatt function for a sequence of pair copulas extracted from an
+#' object of class \linkS4class{dvinecopula} or \linkS4class{dvinecopula2}.
+#'
+#' To set up the pair copula list, use the functions \link{mklist_dvine} for objects of
+#' class \linkS4class{dvinecopula} or \link{mklist_dvine2} for objects
+#' of class \linkS4class{dvinecopula2}.
+#'
+#' The vector \code{data} containing the past values of the time series must have
+#' at least as many elements as the list of pair copulas in \code{pc_list}. The elements
+#' of \code{data} should be in (0,1) and the elements of \code{x} in [0,1].
+#'
 #' @param pc_list a list of pair copulas.
-#' @param data vector of past data values.
+#' @param data vector of past data values in order of occurrence.
 #' @param x vector of arguments of Rosenblatt function.
 #'
 #' @return a vector of values with same length as \code{x}.
@@ -198,8 +220,19 @@ Rblatt <- function(pc_list, data, x){
 
 #' Calculate inverse Rosenblatt function
 #'
+#' Evaluates the inverse Rosenblatt function for a sequence of pair copulas extracted from an
+#' object of class \linkS4class{dvinecopula} or \linkS4class{dvinecopula2}.
+#'
+#' To set up the pair copula list, use the functions \link{mklist_dvine} for objects of
+#' class \linkS4class{dvinecopula} or \link{mklist_dvine2} for objects
+#' of class \linkS4class{dvinecopula2}.
+#'
+#' The vector \code{data} containing the past values of the time series must have
+#' at least as many elements as the list of pair copulas in \code{pc_list}. The elements
+#' of \code{data} should be in (0,1) and the elements of \code{q} in [0,1].
+#'
 #' @param pc_list a list of pair copulas.
-#' @param data vector of past data values.
+#' @param data vector of past data values in order of occurrence.
 #' @param q vector of arguments of inverse Rosenblatt function.
 #'
 #' @return a vector of values with same length as \code{q}.
@@ -226,8 +259,19 @@ IRblatt <- function(pc_list, data, q){
 
 #' Calculate Rosenblatt density function
 #'
+#' Evaluates the Rosenblatt density function for a sequence of pair copulas extracted from an
+#' object of class \linkS4class{dvinecopula} or \linkS4class{dvinecopula2}.
+#'
+#' To set up the pair copula list, use the functions \link{mklist_dvine} for objects of
+#' class \linkS4class{dvinecopula} or \link{mklist_dvine2} for objects
+#' of class \linkS4class{dvinecopula2}.
+#'
+#' The vector \code{data} containing the past values of the time series must have
+#' at least as many elements as the list of pair copulas in \code{pc_list}. The elements
+#' of \code{data} should be in (0,1) and the elements of \code{x} in [0,1].
+#'
 #' @param pc_list a list of pair copulas.
-#' @param data vector of past data values.
+#' @param data vector of past data values in order of occurrence.
 #' @param x vector of arguments of Rosenblatt density function.
 #'
 #' @return a vector of values with same length as \code{x}.
@@ -312,7 +356,7 @@ simdvine <- function(pc_list, n, innov, start){
 #'
 #' @param theta parameters of copulas
 #' @param modelspec list of families of copulas
-#' @param udata data
+#' @param u vector of data
 #'
 #' @return Value of objective function at parameters.
 #'
